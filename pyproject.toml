@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "embeddrix"
+version = "0.1.0"
+description = "A stupid simple service to generate text embeddings "
+authors = ["METDXT <metdxt@obj.su>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+httpx = "^0.27.2"
+blacksheep = "^2.0.7"
+uvicorn = "^0.30.6"
+torch = "^2.1.0"
+torchvision = "^0.19.1"
+torchaudio = "^2.1.0"
+transformers = "^4.44.2"
+sentence-transformers = "^3.1.1"
+pydantic = "^2.9.2"
+einops = "^0.8.0"
+loguru = "^0.7.2"
+psutil = "^6.0.0"
+aiomcache = "^0.8.2"
+orjson = "^3.10.7"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.3"
+pytest-asyncio = "^0.24.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

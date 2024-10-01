@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: embeddrix
+    build:
+      context: .
+      dockerfile: dockerfile
+    environment:
+      - MEMCACHED_HOST=memcached
+      - MEMCACHED_PORT=11211
+    depends_on:
+      - memcached
+    ports:
+      - "44777:44777"
+    volumes:
+      - .:/app
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  memcached:
+    image: memcached:latest
+    container_name: memcached
+    command: ["memcached", "-m", "512"]
+    ports:
+      - "11211:11211"
