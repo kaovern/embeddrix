@@ -8,7 +8,7 @@ import uuid
 from sentence_transformers import SentenceTransformer
 
 # Define the type for the task parameter
-TaskType = Literal['retrieval.query', 'retrieval.passage']
+TaskType = Literal['retrieval.query', 'retrieval.passage', 'text-matching', 'classification', 'separation']
 
 
 def _worker_process(input_queue: Queue, output_queue: Queue):
