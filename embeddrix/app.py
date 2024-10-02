@@ -4,6 +4,7 @@ import os
 import struct
 from collections import OrderedDict
 from functools import wraps
+from hashlib import blake2b
 
 from aiomcache import Client as MemcacheClient
 from blacksheep import Application, post, FromJSON
@@ -102,7 +103,7 @@ async def make_embedding(worker: EmbeddingWorker, text: Union[str, List[str]], t
     
     # Initialize the text-to-embedding map
     for t in text:
-        hash_key = str(hash(t))
+        hash_key = blake2b(t.encode()).hexdigest()
         cached = await cache.get(f"embed:{task}:{hash_key}".encode("utf-8"))
         if cached:
             text_to_embed[t] = list(struct.unpack(embedding_format, cached))
@@ -116,10 +117,10 @@ async def make_embedding(worker: EmbeddingWorker, text: Union[str, List[str]], t
     if texts_for_embed:
         embeds = await worker.get_embeddings(texts_for_embed, task)
         for t, e in zip(texts_for_embed, embeds):
+            hash_key = blake2b(t.encode()).hexdigest()
             e = e.tolist()
             text_to_embed[t] = e
             await cache.set(f"embed:{task}:{hash_key}".encode("utf-8"), struct.pack(embedding_format, *e))
-
     return [text_to_embed[t] for t in text]
     
 
