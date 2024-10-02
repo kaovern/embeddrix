@@ -43,3 +43,9 @@ so you gotta install it. Performance on CPU is suboptimal. If you wanna AMD supp
 figure it out yourself, I ain't got one. PRs welcome though.
 
 Also you can use dockerfile in your own compose apps, obvsly... use `docker-compose.yml` as reference.
+
+## Usage
+
+Service works on the plainest HTTP request one can imagine.
+Once the service is running you can get swagger documentation UI at `/docs` endpoint.
+OpenAPI specs are at `/openapi.json`/`/openapi.yml` endpoints.
