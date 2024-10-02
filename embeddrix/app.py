@@ -9,7 +9,7 @@ from aiomcache import Client as MemcacheClient
 from blacksheep import Application, post, FromJSON
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.compression import use_gzip_compression
-from openapidocs.v3 import Info
+from openapidocs.v3 import Info, License
 from openapidocs.common import Format
 from loguru import logger
 from pydantic import BaseModel
@@ -22,7 +22,8 @@ use_gzip_compression(app)
 docs = OpenAPIHandler(info=Info(
     title="Embeddrix",
     version="0.0.1",
-    description="A stupid simple service to generate text embeddings."
+    description="A stupid simple service to generate text embeddings.",
+    license=License("MIT")
 ), preferred_format=Format.YAML)
 docs.bind_app(app)
 

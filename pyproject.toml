@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "A stupid simple service to generate text embeddings "
 authors = ["METDXT <metdxt@obj.su>"]
 readme = "README.md"
+license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.12"
