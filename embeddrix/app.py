@@ -1,26 +1,35 @@
 from time import monotonic_ns
-from typing import Literal, Union, List
+from typing import Union, List
 import os
 import struct
 from collections import OrderedDict
+from functools import wraps
 
 from aiomcache import Client as MemcacheClient
-from blacksheep import Application, post, FromText
+from blacksheep import Application, post, FromJSON
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.compression import use_gzip_compression
 from openapidocs.v3 import Info
+from openapidocs.common import Format
 from loguru import logger
-import orjson
+from pydantic import BaseModel
 
-from .embedding_worker import EmbeddingWorker
+from .embedding_worker import EmbeddingWorker, TaskType
 
 app = Application()
 use_gzip_compression(app)
 
-docs = OpenAPIHandler(info=Info(title="Embeddrix", version="0.0.1"))
+docs = OpenAPIHandler(info=Info(
+    title="Embeddrix",
+    version="0.0.1",
+    description="A stupid simple service to generate text embeddings."
+), preferred_format=Format.YAML)
 docs.bind_app(app)
 
 embedding_format = "1024d"  # 1024 doubles for jina-embeddings-v3 model
+
+class InputData(BaseModel):
+    texts: list[str]
 
 async def initialize_cache() -> MemcacheClient:
     memcached_host = os.getenv("MEMCACHED_HOST", "127.0.0.1")
@@ -51,7 +60,19 @@ async def on_stop(app: Application, worker: EmbeddingWorker):
     worker.close()
 
 
-async def make_embedding(worker: EmbeddingWorker, text: Union[str, List[str]], task: Literal['retrieval.passage', 'retrieval.query'], cache: MemcacheClient) -> List[List[float]]:
+def timeit(func):
+    fn_name = func.__name__
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        start = monotonic_ns()
+        res = await func(*args, **kwargs)
+        end = monotonic_ns()
+        logger.info(f"{fn_name} took {(end-start)/1_000_000} ms")
+        return res
+    return wrapper
+
+@timeit
+async def make_embedding(worker: EmbeddingWorker, text: Union[str, List[str]], task: TaskType, cache: MemcacheClient) -> List[List[float]]:
     """
     Create embeddings for the provided text(s) using an embedding worker.
     Results are cached to avoid redundant computations.
@@ -95,9 +116,95 @@ async def make_embedding(worker: EmbeddingWorker, text: Union[str, List[str]], t
     
 
 @post("/passage")
-async def passage(worker: EmbeddingWorker, text: FromText, cache: MemcacheClient) -> List[List[float]]:
-    return await make_embedding(worker, text.value, "retrieval.passage", cache)
+async def passage(worker: EmbeddingWorker, input: FromJSON[InputData], cache: MemcacheClient) -> List[List[float]]:
+    """Generate Embeddings for Passage Texts
+    
+    <br><br>
+    <b>Endpoint:</b><br>
+        POST /passage<br>
+    <br>
+    <b>Description:</b><br>
+        This endpoint generates 1024-dimensional embeddings for passage texts. The embeddings are intended for retrieval 
+        tasks where the passage serves as the content to be searched.<br>
+
+    <b>Request Body:</b><br>
+        The request body should be a JSON object that contains a list of text passages.<br>
+        <br>
+        - `texts`: A list of strings, where each string is a passage text to be embedded.<br>
+    <br>
+    <b>JSON Example:</b><br>
+        <pre>
+        <code>
+        {<br>
+            "texts": [<br>
+                "Sample passage text 1.",<br>
+                "Sample passage text 2.",<br>
+                "Sample passage text 3."<br>
+            ]<br>
+        }<br>
+        </code>
+        </pre>
+    <br>
+    <b>Response:</b><br>
+        The response will be a JSON array, where each element is a list of 1024 floating-point numbers 
+        representing the embedding of the corresponding input text.<br>
+
+    <b>JSON Example:</b><br>
+        <pre>
+        <code>
+        [<br>
+            [0.123, 0.456, /* ... 1022 more numbers ... */, 0.789],<br>
+            [0.234, 0.567, /* ... 1022 more numbers ... */, 0.890],<br>
+            [0.345, 0.678, /* ... 1022 more numbers ... */, 0.901]<br>
+        ]<br>
+        </code>
+        </pre>
+    """
+    return await make_embedding(worker, input.value.texts, "retrieval.passage", cache)
 
 @post("/query")
-async def query(worker: EmbeddingWorker, text: FromText, cache: MemcacheClient) -> List[List[float]]:
-    return await make_embedding(worker, text.value, "retrieval.query", cache)
+async def query(worker: EmbeddingWorker, input: FromJSON[InputData], cache: MemcacheClient) -> List[List[float]]:
+    """Generate Embeddings for Query Texts
+    
+    <br><br>
+    <b>Endpoint:</b><br>
+        POST /passage<br>
+    <br>
+    <b>Description:</b><br>
+        This endpoint generates 1024-dimensional embeddings for query texts. The embeddings are intended for retrieval 
+        tasks where the query serves as the question to be answered.<br>
+
+    <b>Request Body:</b><br>
+        The request body should be a JSON object that contains a list of text queries.<br>
+        <br>
+        - `texts`: A list of strings, where each string is a query text to be embedded.<br>
+    <br>
+    <b>JSON Example:</b><br>
+        <pre>
+        <code>
+        {<br>
+            "texts": [<br>
+                "What is the capital of Russia?",<br>
+                "When did Boston tea party happen?",<br>
+                "Why don't we see stars anymore?"<br>
+            ]<br>
+        }<br>
+        </code>
+        </pre>
+    <br>
+    <b>Response:</b><br>
+        The response will be a JSON array, where each element is a list of 1024 floating-point numbers 
+        representing the embedding of the corresponding input text.<br>
+
+    <b>JSON Example:</b><br>
+        <pre>
+        <code>
+        [<br>
+            [0.123, 0.456, /* ... 1022 more numbers ... */, 0.789],<br>
+            [0.234, 0.567, /* ... 1022 more numbers ... */, 0.890],<br>
+            [0.345, 0.678, /* ... 1022 more numbers ... */, 0.901]<br>
+        ]<br>
+        </code>
+        </pre>
+    """
+    return await make_embedding(worker, input.value.texts, "retrieval.query", cache)
