@@ -19,6 +19,13 @@ from .embedding_worker import EmbeddingWorker, TaskType
 app = Application()
 use_gzip_compression(app)
 
+app.use_cors(
+    allow_methods="*",
+    allow_origins="*",
+    allow_headers="*",
+    max_age=300,
+)
+
 docs = OpenAPIHandler(info=Info(
     title="Embeddrix",
     version="0.0.1",
